@@ -244,7 +244,7 @@ class MetricLogger(object):
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
 
-                wandb.log(dict(self.meters))
+                wandb.log({k:v.value for k, v in self.meters.items()})
 
                 if torch.cuda.is_available():
                     print_func(log_msg.format(
