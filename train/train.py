@@ -23,6 +23,7 @@ from segment_anything_training.modeling import TwoWayTransformer, MaskDecoder
 from utils.dataloader import get_im_gt_name_dict, create_dataloaders, RandomHFlip, Resize, LargeScaleJitter
 from utils.loss_mask import loss_masks
 import utils.misc as misc
+import wandb
 
 
 
@@ -377,6 +378,16 @@ def train(args, net, optimizer, train_dataloaders, valid_dataloaders, lr_schedul
     if misc.is_main_process():
         os.makedirs(args.output, exist_ok=True)
 
+    # wandb Config
+    wandb.login(key='9ec4400eb7b776f10ae4dcfce5936fb0f70c57a6')
+    wandb.init(project="HQ_SAM_Finetune",
+        config={
+            "lr": args.learning_rate,
+            "start_epoch": args.start_epoch,
+            "max_epoch_num":args.max_epoch_num,
+    })
+
+
     epoch_start = args.start_epoch
     epoch_num = args.max_epoch_num
     train_num = len(train_dataloaders)
@@ -393,7 +404,7 @@ def train(args, net, optimizer, train_dataloaders, valid_dataloaders, lr_schedul
         metric_logger = misc.MetricLogger(delimiter="  ")
         train_dataloaders.batch_sampler.sampler.set_epoch(epoch)
 
-        for data in metric_logger.log_every(train_dataloaders,1000):
+        for data in metric_logger.log_every(train_dataloaders, 500):
             inputs, labels = data['image'], data['label']
             if torch.cuda.is_available():
                 inputs = inputs.cuda()

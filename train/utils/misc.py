@@ -26,6 +26,7 @@ import cv2
 
 # needed due to empty tensor bug in pytorch and torchvision 0.5
 import torchvision
+import wandb
 
 
 class SmoothedValue(object):
@@ -242,6 +243,9 @@ class MetricLogger(object):
             if i % print_freq == 0 or i == len(iterable) - 1:
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
+
+                wandb.log(self.meters)
+
                 if torch.cuda.is_available():
                     print_func(log_msg.format(
                         i, len(iterable), eta=eta_string,
