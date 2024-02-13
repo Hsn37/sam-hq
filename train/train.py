@@ -358,13 +358,6 @@ def main(net, train_datasets, valid_datasets, args):
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.lr_drop_epoch)
         lr_scheduler.last_epoch = args.start_epoch
 
-        if args.restore_model:
-            print("restore model from:", args.restore_model)
-            if torch.cuda.is_available():
-                net_without_ddp.load_state_dict(torch.load(args.restore_model))
-            else:
-                net_without_ddp.load_state_dict(torch.load(args.restore_model,map_location="cpu"))
-
         train(args, net, optimizer, train_dataloaders, valid_dataloaders, lr_scheduler)
     else:
         sam = sam_model_registry[args.model_type](checkpoint=args.checkpoint)
