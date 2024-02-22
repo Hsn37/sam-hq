@@ -155,6 +155,21 @@ class MaskDecoderHQ(nn.Module):
         # Prepare output
         return masks, iou_pred
 
+    # by LBK EDIT
+    @staticmethod
+    def interpolate(x, w, h):
+        height, width = x.shape[2:]
+
+        # we add a small number to avoid floating point error in the interpolation
+        # see discussion at https://github.com/facebookresearch/dino/issues/8
+        w0, h0 = w + 0.1, h + 0.1
+        x = nn.functional.interpolate(
+            x,
+            scale_factor=(w0 / height, h0 / width),
+            mode='bicubic',
+        )
+        return x
+
     def predict_masks(
         self,
         image_embeddings: torch.Tensor,
@@ -171,12 +186,19 @@ class MaskDecoderHQ(nn.Module):
 
         # Expand per-image data in batch direction to be per-mask
         src = torch.repeat_interleave(image_embeddings, tokens.shape[0], dim=0)
-        src = src + dense_prompt_embeddings
+        # by LBK EDIT
+        try:
+            src = src + dense_prompt_embeddings
+        except:
+            src = src + self.interpolate(dense_prompt_embeddings, *src.shape[2:])
         pos_src = torch.repeat_interleave(image_pe, tokens.shape[0], dim=0)
         b, c, h, w = src.shape
 
         # Run the transformer
-        hs, src = self.transformer(src, pos_src, tokens)
+        try:
+            hs, src = self.transformer(src, pos_src, tokens)
+        except:
+            hs, src = self.transformer(src, self.interpolate(pos_src, *src.shape[2:]), tokens)
         iou_token_out = hs[:, 0, :]
         mask_tokens_out = hs[:, 1 : (1 + self.num_mask_tokens), :]
 

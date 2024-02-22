@@ -104,10 +104,15 @@ class ImageEncoderViT(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        
         x = self.patch_embed(x)
-        if self.pos_embed is not None:
-            x = x + self.pos_embed
 
+        if self.pos_embed is not None:
+            # by LBK EDIT
+            try:
+                x = x + self.pos_embed
+            except:
+                x = x + self.interpolate_pos_encoding(*x.shape[1:3])
         interm_embeddings=[]
         for blk in self.blocks:
             x = blk(x)
@@ -117,6 +122,17 @@ class ImageEncoderViT(nn.Module):
         x = self.neck(x.permute(0, 3, 1, 2))
 
         return x, interm_embeddings
+    
+    # by LBK EDIT
+    def interpolate_pos_encoding(self, h, w):
+        height, width = self.pos_embed.shape[1:3]
+
+        patch_pos_embed = nn.functional.interpolate(
+            self.pos_embed.permute(0, 3, 1, 2),
+            scale_factor=(h / height, w / width),
+            mode='bicubic',
+        ).permute(0, 2, 3, 1)
+        return patch_pos_embed
 
 
 class Block(nn.Module):
@@ -171,6 +187,8 @@ class Block(nn.Module):
         x = self.norm1(x)
         # Window partition
         if self.window_size > 0:
+            orig_H, orig_W = x.shape[1], x.shape[2] # LBK
+            x = F.interpolate(x.permute(0,3,1,2), size=(64, 64), mode='bicubic').permute(0,2,3,1) # LBK
             H, W = x.shape[1], x.shape[2]
             x, pad_hw = window_partition(x, self.window_size)
 
@@ -178,6 +196,7 @@ class Block(nn.Module):
         # Reverse window partition
         if self.window_size > 0:
             x = window_unpartition(x, self.window_size, pad_hw, (H, W))
+            x = F.interpolate(x.permute(0,3,1,2), size=(orig_H, orig_W), mode='bicubic').permute(0,2,3,1) # LBK
 
         x = shortcut + x
         x = x + self.mlp(self.norm2(x))

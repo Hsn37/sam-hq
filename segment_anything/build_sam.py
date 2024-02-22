@@ -11,36 +11,39 @@ from functools import partial
 from .modeling import ImageEncoderViT, MaskDecoderHQ, PromptEncoder, Sam, TwoWayTransformer, TinyViT
 
 
-def build_sam_vit_h(checkpoint=None):
+def build_sam_vit_h(checkpoint=None, custom_img_size=1024):
     return _build_sam(
         encoder_embed_dim=1280,
         encoder_depth=32,
         encoder_num_heads=16,
         encoder_global_attn_indexes=[7, 15, 23, 31],
         checkpoint=checkpoint,
+        custom_img_size=custom_img_size
     )
 
 
-build_sam = build_sam_vit_h
+# build_sam = build_sam_vit_h
 
 
-def build_sam_vit_l(checkpoint=None):
+def build_sam_vit_l(checkpoint=None, custom_img_size=1024):
     return _build_sam(
         encoder_embed_dim=1024,
         encoder_depth=24,
         encoder_num_heads=16,
         encoder_global_attn_indexes=[5, 11, 17, 23],
         checkpoint=checkpoint,
+        custom_img_size=custom_img_size
     )
 
 
-def build_sam_vit_b(checkpoint=None):
+def build_sam_vit_b(checkpoint=None, custom_img_size=1024):
     return _build_sam(
         encoder_embed_dim=768,
         encoder_depth=12,
         encoder_num_heads=12,
         encoder_global_attn_indexes=[2, 5, 8, 11],
         checkpoint=checkpoint,
+        custom_img_size=custom_img_size
     )
 
 
@@ -113,6 +116,7 @@ def _build_sam(
     encoder_num_heads,
     encoder_global_attn_indexes,
     checkpoint=None,
+    custom_img_size=1024
 ):
     prompt_embed_dim = 256
     image_size = 1024
@@ -133,10 +137,19 @@ def _build_sam(
             window_size=14,
             out_chans=prompt_embed_dim,
         ),
+        # prompt_encoder=PromptEncoder(
+        #     embed_dim=prompt_embed_dim,
+        #     image_embedding_size=(image_embedding_size, image_embedding_size),
+        #     input_image_size=(image_size, image_size),
+        #     mask_in_chans=16,
+        # ),
         prompt_encoder=PromptEncoder(
             embed_dim=prompt_embed_dim,
-            image_embedding_size=(image_embedding_size, image_embedding_size),
-            input_image_size=(image_size, image_size),
+            # LBK EDIT (Important)
+            # image_embedding_size=(image_embedding_size, image_embedding_size),
+            # input_image_size=(image_size, image_size),
+            image_embedding_size=(custom_img_size//vit_patch_size, custom_img_size//vit_patch_size),
+            input_image_size=(custom_img_size, custom_img_size),
             mask_in_chans=16,
         ),
         mask_decoder=MaskDecoderHQ(
