@@ -148,12 +148,14 @@ class Sam(nn.Module):
 
     # Batch Individual Mask Generation by LBK
     @torch.no_grad()
-    def individual_forward(
+    def generate_masks_fast(
         self,
         batched_input: List[Dict[str, Any]],
         multimask_output: bool,
         is_low_resol: bool = False,
         hq_token_only: bool =False,
+        iou_thresh=0.85,
+        stability_thresh=0.9
     ) -> List[Dict[str, torch.Tensor]]:
         
         input_images = torch.stack([self.lbk_preprocess(x["image"]) for x in batched_input], dim=0)
@@ -182,7 +184,7 @@ class Sam(nn.Module):
           )
 
           # Progressing Intergraion.. by LBK
-          refined_masks = self.postprocess_small_regions(low_res_masks, iou_predictions, *input_images.shape[2:], is_low_resol)
+          refined_masks = self.postprocess_small_regions(low_res_masks, iou_predictions, *input_images.shape[2:], is_low_resol, iou_thresh, stability_thresh)
           if not is_low_resol:
             refined_masks = F.interpolate(
               refined_masks.unsqueeze(1).float(),
@@ -195,7 +197,7 @@ class Sam(nn.Module):
         return refined_mask_outputs
     
     # PostProcess by LBK EDIT
-    def postprocess_small_regions(self, masks, iou_predictions, orig_h, orig_w, is_low_resol):
+    def postprocess_small_regions(self, masks, iou_predictions, orig_h, orig_w, is_low_resol, iou_thresh, stability_thresh):
 
 
       """
@@ -207,9 +209,9 @@ class Sam(nn.Module):
       # box_nms_thresh = 0.7
 
 
-      pred_iou_thresh = 0.7
+      pred_iou_thresh = iou_thresh
       stability_score_offset = 1.0
-      stability_score_thresh = 0.7
+      stability_score_thresh = stability_thresh
       box_nms_thresh = 0.7
 
       # Interpolation
